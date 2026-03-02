@@ -2,10 +2,6 @@
 /******************************************************************************
  * DATABASE VARIABLES
  * These are the variables for your listing collective.
- * $db_server   - database server, usually localhost
- * $db_user     - username for your database
- * $db_password - password for your database
- * $db_database - actual database name
  ******************************************************************************/
 $db_server = 'localhost';
 $db_user = 'username';
@@ -14,16 +10,7 @@ $db_database = 'databasename';
 
 /******************************************************************************
  * DATABASE TABLE VARIABLES
- * These are the variables for your listing collective's tables. You can leave
- * these as they are unless you already use one of the default values as a
- * table name in your database previously.
- * $db_settings      - table for Enth3 settings
- * $db_category      - table for the categories
- * $db_joined        - table for your joined listings
- * $db_owned         - table for storing information about your owned listings
- * $db_affiliates    - table for your *collective* affiliates
- * $db_emailtemplate - table for your email templates
- * $db_errorlog      - table for your error logs (required even if not set)
+ * These are the variables for your listing collective's tables.
  ******************************************************************************/
 $db_settings = 'settings';
 $db_category = 'category';
@@ -32,7 +19,6 @@ $db_owned = 'owned';
 $db_affiliates = 'affiliates';
 $db_emailtemplate = 'emailtemplate';
 $db_errorlog = 'errorlog';
-
 
 /******************************************************************************
  * DO NOT EDIT ANYTHING BELOW THIS LINE UNTIL THE NEXT SIMILAR NOTE!
@@ -47,28 +33,38 @@ if (!defined('STANDARD_ERROR')) {
 }
 
 if (!defined('ENTH_PATH')) {
-// get installation path
-    $query = "SELECT `value` FROM `$db_settings` WHERE `setting` = " .
-        '"installation_path"';
+    // Get installation path
+    $query = "SELECT `value` FROM `$db_settings` WHERE `setting` = :setting"; // Use parameter binding
     try {
-        $db_link = new PDO('mysql:host=' . $db_server . ';dbname=' . $db_database . ';charset=utf8', $db_user,
-            $db_password);
+        $db_link = new PDO('mysql:host=' . $db_server . ';dbname=' . $db_database . ';charset=utf8', $db_user, $db_password);
         $db_link->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        
+        // Prepare the statement
+        $stmt = $db_link->prepare($query);
+        
+        // Execute with parameter binding
+        $stmt->execute([':setting' => 'installation_path']);
+        
+        // Fetch the result
+        $row = $stmt->fetch(PDO::FETCH_ASSOC); 
+        if ($row === false) {
+            throw new RuntimeException('Query ' . $query . ' returned no results.');
+        }
+        define('ENTH_PATH', $row['value']);
+        
     } catch (PDOException $e) {
-        die(DATABASE_CONNECT_ERROR . $e->getMessage());
+        // Log the error message and provide a user-friendly message
+        error_log(DATABASE_CONNECT_ERROR . $e->getMessage());
+        die(DATABASE_CONNECT_ERROR);
+    } catch (RuntimeException $e) {
+        // Handle runtime exceptions (like unexpected results)
+        error_log($e->getMessage());
+        die(STANDARD_ERROR);
+    } catch (Exception $e) {
+        // Catch all other exceptions
+        error_log('Unexpected error: ' . $e->getMessage());
+        die(STANDARD_ERROR);
     }
-    $result = $db_link->query($query);
-    if (!$result) {
-        die('Error executing query: <i>' . $result->errorInfo()[2] .
-            '</i>; Query is: <code>' . $query . '</code>');
-    }
-    $result->setFetchMode(PDO::FETCH_ASSOC);
-    $row = $result->fetch();
-    if ($row === false) {
-        throw new RuntimeException('Query ' . $query . ' gave unexpected result - false');
-    }
-    $path = $row['value'];
-    define('ENTH_PATH', $row['value']);
 }
 /******************************************************************************
  * END OF THE SENSITIVE LINES
@@ -76,10 +72,12 @@ if (!defined('ENTH_PATH')) {
 
 
 /******************************************************************************
- * LISTING ID VARIBLE
+ * LISTING ID VARIABLE
  * This variable is for the listing ID of the fanlisting this config file is
  * for. When this file is in the collective directory, it should be commented
  * (must have '//' before the line). Otherwise, it MUST be uncommented (no
  * '//' before the line) and the proper listing ID should be set.
  ******************************************************************************/
-//$listing = 1;
+
+//$listing = 1; // Uncomment this line and set your listing ID as needed.
+
